@@ -77,19 +77,28 @@ public:
     }
 
     void update(uint32_t vpn, uint32_t frame) {
-        // Basic logic: Replace an entry (you can improve this with FIFO/LRU later)
-        for (auto& entry : table) {
-            if (!entry.valid) { // Find an empty slot first
-                entry.vpn = vpn;
-                entry.frameNumber = frame;
-                entry.valid = true;
-                return;
-            }
+    // First, check if already exists (update)
+    for (auto& entry : table) {
+        if (entry.valid && entry.vpn == vpn) {
+            entry.frameNumber = frame;
+            return;
         }
-        // If no empty slot, overwrite the first one (simple FIFO for now)
-        table[0].vpn = vpn;
-        table[0].frameNumber = frame;
-        table[0].valid = true;
     }
+    // Find empty slot
+    for (auto& entry : table) {
+        if (!entry.valid) {
+            entry.vpn = vpn;
+            entry.frameNumber = frame;
+            entry.valid = true;
+            return;
+        }
+    }
+    // TLB full → simple round-robin replacement (better than always index 0)
+    static int nextReplace = 0;
+    table[nextReplace].vpn = vpn;
+    table[nextReplace].frameNumber = frame;
+    table[nextReplace].valid = true;
+    nextReplace = (nextReplace + 1) % capacity;
+}
     
 };

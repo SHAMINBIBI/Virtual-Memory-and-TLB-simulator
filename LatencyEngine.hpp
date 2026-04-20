@@ -31,7 +31,7 @@ public:
         switch (event) {
             case MemoryEvent::TLB_HIT:
                 tlbHits++;
-                totalTimeNs += tlbLat; // Fastest path
+                totalTimeNs += (tlbLat + ramLat);   // ← changed: TLB hit still needs RAM access
                 break;
 
             case MemoryEvent::TLB_MISS_PT_HIT:

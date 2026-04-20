@@ -62,13 +62,12 @@ int main() {
         int frame = myTLB.lookup(vpn);
 
         if (frame != -1) {
-            // TLB HIT
-            stats.recordEvent(MemoryEvent::TLB_HIT);
-            
-            // FIX #02 & #03: Record access for LRU/OPT even on TLB hit
-            myPageTable.recordAccess(vpn, traceIdx);
-            
-        } else {
+           // TLB HIT
+          stats.recordEvent(MemoryEvent::TLB_HIT);   // currently only tlbLat
+          // But you still access RAM → add ramLat here or change StatisticsEngine
+          myPageTable.recordAccess(vpn, traceIdx);
+        } 
+        else {
             // TLB MISS
             bool isPageInRAM = myPageTable.check(vpn);
 
@@ -107,11 +106,12 @@ int main() {
             }
         }
         
-        // Set dirty bit on write operation
+                // === AFTER the big if-else for TLB / Page Fault handling ===
         if (opType == 'W' || opType == 'w') {
             myPageTable.setDirty(vpn);
         }
         
+        myPageTable.recordAccess(vpn, traceIdx);   // make sure this is called once only
         ++traceIdx;
     }
 
