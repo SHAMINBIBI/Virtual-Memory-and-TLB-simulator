@@ -1,0 +1,11 @@
+{
+  "ram_size_kb": 512,
+  "page_size_bytes": 4096,
+  "tlb_size": 16,
+  "replacement_policy": "FIFO",         
+  "latencies": {
+    "tlb_ns": 1,
+    "ram_ns": 100,
+    "disk_ms": 10
+  }
+}
