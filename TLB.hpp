@@ -1,72 +1,36 @@
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include "json.hpp" 
-#include <string>
+#ifndef TLB_HPP
+#define TLB_HPP
 
-using namespace std;
-
-using json = nlohmann::json;
-
-struct SystemConfig {
-    int ramSize;
-    int pageSize;
-    int tlbSize;
-    int tlbLatency;
-    int ramLatency;
-    long long diskLatencyNs;
-    int shiftAmount;
-    std::string replacementPolicy = "FIFO";   // ← your new field
-
-    void load(const std::string& filename) {   // ← note: I also fixed const std::string&
-        std::ifstream file(filename);
-        json j = json::parse(file);            // ← CHANGED from "data" to "j"
-
-        ramSize = j["ram_size_kb"];
-        pageSize = j["page_size_bytes"];
-        tlbSize = j["tlb_size"];
-        
-        tlbLatency = j["latencies"]["tlb_ns"];
-        ramLatency = j["latencies"]["ram_ns"];
-        
-        int diskMs = j["latencies"]["disk_ms"];
-        diskLatencyNs = diskMs * 1000000LL;
-
-        shiftAmount = static_cast<int>(log2(pageSize));
-
-        // New policy (safe now)
-        if (j.contains("replacement_policy")) {
-            replacementPolicy = j["replacement_policy"];
-        }
-    }
-};
+#include <vector>
+#include <cstdint>
 
 struct TLBEntry {
-    uint32_t vpn;
-    uint32_t frameNumber;
+    uint32_t vpn = 0;
+    uint32_t frameNumber = 0;
     bool valid = false;
 };
 
 class TLB {
 private:
-    vector<TLBEntry> table;
+    std::vector<TLBEntry> table;
     int capacity;
 
 public:
-    TLB(int size) : capacity(size) {
+    explicit TLB(int size) : capacity(size) {
         table.resize(size);
     }
 
-    // Task: TLB Lookup [cite: 64, 203]
+    // Lookup TLB
     int lookup(uint32_t vpn) {
         for (const auto& entry : table) {
-            if ((entry.valid) && (entry.vpn == vpn)) 
+            if (entry.valid && entry.vpn == vpn) {
                 return entry.frameNumber;
+            }
         }
-        return -1; // TLB MISS
+        return -1; // MISS
     }
 
-    // Task: Mandatory Invalidation 
+    // Mandatory Invalidation on eviction
     void invalidate(uint32_t vpn) {
         for (auto& entry : table) {
             if (entry.vpn == vpn) {
@@ -76,29 +40,31 @@ public:
         }
     }
 
+    // Update TLB (with round-robin replacement when full)
     void update(uint32_t vpn, uint32_t frame) {
-    // First, check if already exists (update)
-    for (auto& entry : table) {
-        if (entry.valid && entry.vpn == vpn) {
-            entry.frameNumber = frame;
-            return;
+        // Update if already exists
+        for (auto& entry : table) {
+            if (entry.valid && entry.vpn == vpn) {
+                entry.frameNumber = frame;
+                return;
+            }
         }
-    }
-    // Find empty slot
-    for (auto& entry : table) {
-        if (!entry.valid) {
-            entry.vpn = vpn;
-            entry.frameNumber = frame;
-            entry.valid = true;
-            return;
+        // Find empty slot
+        for (auto& entry : table) {
+            if (!entry.valid) {
+                entry.vpn = vpn;
+                entry.frameNumber = frame;
+                entry.valid = true;
+                return;
+            }
         }
+        // TLB full → round-robin
+        static int nextReplace = 0;
+        table[nextReplace].vpn = vpn;
+        table[nextReplace].frameNumber = frame;
+        table[nextReplace].valid = true;
+        nextReplace = (nextReplace + 1) % capacity;
     }
-    // TLB full → simple round-robin replacement (better than always index 0)
-    static int nextReplace = 0;
-    table[nextReplace].vpn = vpn;
-    table[nextReplace].frameNumber = frame;
-    table[nextReplace].valid = true;
-    nextReplace = (nextReplace + 1) % capacity;
-}
-    
 };
+
+#endif

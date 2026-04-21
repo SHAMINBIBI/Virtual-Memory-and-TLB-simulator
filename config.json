@@ -2,7 +2,7 @@
   "ram_size_kb": 512,
   "page_size_bytes": 4096,
   "tlb_size": 16,
-  "replacement_policy": "FIFO",         
+  "replacement_policy": "OPT",
   "latencies": {
     "tlb_ns": 1,
     "ram_ns": 100,

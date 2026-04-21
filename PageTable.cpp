@@ -1,26 +1,25 @@
 #include "PageTable.hpp"
 #include <iostream>
-
-void PageTable::moveToMRU(uint32_t vpn) {
-    if (lruPosition.count(vpn)) {
-        lruOrder.erase(lruPosition[vpn]);
-    }
-    lruOrder.push_front(vpn);
-    lruPosition[vpn] = lruOrder.begin();
+int maxFrames;
+PageTable::PageTable(SystemConfig& config) {
+    freeFrameManager = new FreeFrameManager(config.numFrames);
+    replacementAlgo = new ReplacementAlgorithms(config.replacementPolicy);
+    maxFrames = config.numFrames;
+    std::cout << "[PageTable] Initialized with " << config.numFrames << " frames.\n";
 }
 
-void PageTable::precomputeOPT(const std::vector<std::pair<char, uint32_t>>& fullTrace) {
-    traceRef = &fullTrace;
-    isOPT = true;
-    pageAccessTimes.clear();
-    for (size_t i = 0; i < fullTrace.size(); ++i) {
-        uint32_t vpn = fullTrace[i].second >> shiftAmount;
-        pageAccessTimes[vpn].push_back(i);
-    }
+PageTable::~PageTable() {
+    delete freeFrameManager;
+    delete replacementAlgo;
+}
+
+void PageTable::precomputeOPT(const std::vector<std::pair<char, uint32_t>>& fullTrace, int shiftAmount) {
+    replacementAlgo->precomputeOPT(fullTrace, shiftAmount);
 }
 
 bool PageTable::check(uint32_t vpn) const {
-    return table.count(vpn) && table.at(vpn).valid;
+    auto it = table.find(vpn);
+    return (it != table.end() && it->second.valid);
 }
 
 uint32_t PageTable::getFrame(uint32_t vpn) const {
@@ -28,74 +27,60 @@ uint32_t PageTable::getFrame(uint32_t vpn) const {
 }
 
 void PageTable::setDirty(uint32_t vpn) {
-    if (table.count(vpn)) table[vpn].dirty = true;
+    auto it = table.find(vpn);
+    if (it != table.end()) {
+        it->second.dirty = true;
+    }
 }
 
 uint32_t PageTable::allocateFrame(uint32_t newVPN, size_t currentTraceIdx) {
-    uint32_t frame;
+    uint32_t frame = 0;
 
-    if (!freeFrames.empty()) {
-        frame = freeFrames.front();
-        freeFrames.pop_front();
+    std::cout << "[DEBUG] allocateFrame called for VPN=" << std::hex << newVPN 
+              << " at trace " << std::dec << currentTraceIdx << std::endl;
+
+    if (freeFrameManager->getFreeFrame(frame)) {
+        std::cout << "[DEBUG] Assigned free frame " << frame << std::endl;
     } else {
         // Eviction needed
-        uint32_t victimVPN = 0;
-        if (policy == "FIFO") {
-            victimVPN = fifoQueue.front(); fifoQueue.pop_front();
-        } else if (policy == "LRU") {
-            victimVPN = lruOrder.back();
-            lruOrder.pop_back();
-            lruPosition.erase(victimVPN);
-        } else if (policy == "OPT" && isOPT) {
-            // Clairvoyant OPT: find page with farthest future use
-            size_t farthest = 0;
-            for (const auto& [vpn, entry] : table) {
-                if (!entry.valid) continue;
-                auto& accesses = pageAccessTimes[vpn];
-                auto it = std::lower_bound(accesses.begin() + optNextIndex[vpn], accesses.end(), currentTraceIdx + 1);
-                size_t nextUse = (it != accesses.end()) ? *it : std::numeric_limits<size_t>::max();
-                if (nextUse > farthest) {
-                    farthest = nextUse;
-                    victimVPN = vpn;
-                }
+        std::unordered_map<uint32_t, bool> currentPages;
+        for (const auto& p : table) {
+            if (p.second.valid) {
+                currentPages[p.first] = true;
             }
         }
 
+        uint32_t victimVPN = replacementAlgo->selectVictim(currentPages, currentTraceIdx);
+
+        std::cout << "[DEBUG] Evicting victim VPN=" << std::hex << victimVPN << std::dec << std::endl;
+
         lastEvictedVPN = victimVPN;
-        lastVictimWasDirty = table[victimVPN].dirty;
-        frame = table[victimVPN].frameNumber;
-        table.erase(victimVPN);
+        auto it = table.find(victimVPN);
+        if (it != table.end()) {
+            lastVictimWasDirty = it->second.dirty;
+            frame = it->second.frameNumber;
+
+            if (lastVictimWasDirty) {
+                std::cout << "[DEBUG] Victim was DIRTY → will trigger writeback!\n";
+            }
+
+            table.erase(it);
+        }
     }
 
-    // Map new page
+    // Insert new page
     table[newVPN] = {frame, true, false};
-
-    // Update replacement structure
-    if (policy == "FIFO") {
-        fifoQueue.push_back(newVPN);
-    } else if (policy == "LRU") {
-        moveToMRU(newVPN);
-    } else if (policy == "OPT") {
-        optNextIndex[newVPN] = 0;   // will be updated on next access if needed
-    }
+    replacementAlgo->addPage(newVPN);
 
     return frame;
 }
-
-void PageTable::printState() const {
-    std::cout << "PageTable state (" << policy << "): " << table.size() << "/" << maxFrames << " pages in RAM\n";
-    // You can expand this for the 10-instruction proof if needed
+bool PageTable::isFull() const {
+    return table.size() >= static_cast<size_t>(maxFrames);
 }
 void PageTable::recordAccess(uint32_t vpn, size_t currentTraceIdx) {
-    if (policy == "LRU") {
-        moveToMRU(vpn);
-    }
-    if (policy == "OPT" && isOPT) {
-        auto& idx = optNextIndex[vpn];
-        auto& accesses = pageAccessTimes[vpn];
-        // Advance to next future access index if current one is in the past
-        while (idx < accesses.size() && accesses[idx] <= currentTraceIdx) {
-            idx++;
-        }
-    }
+    replacementAlgo->recordAccess(vpn, currentTraceIdx);
+}
+
+void PageTable::printState() const {
+    std::cout << "[PageTable] Current pages in RAM: " << table.size() << std::endl;
 }
