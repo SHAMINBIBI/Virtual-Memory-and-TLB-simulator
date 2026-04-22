@@ -41,7 +41,7 @@ public:
             uint32_t vpn = fullTrace[i].second >> shiftAmount;
             pageAccessTimes[vpn].push_back(i);
         }
-        std::cout << "[OPT] Precomputed future accesses for " << pageAccessTimes.size() << " pages.\n";
+       // std::cout << "[OPT] Precomputed future accesses for " << pageAccessTimes.size() << " pages.\n";
     }
 
     // Record access (used for LRU and OPT)

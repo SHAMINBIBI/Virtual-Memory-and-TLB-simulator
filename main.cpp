@@ -7,7 +7,7 @@
 #include "PageTable.hpp"
 #include "TLB.hpp"
 #include "LatencyEngine.hpp"
-#include "VirtualDisk.hpp"
+
 
 int main() {
     SystemConfig config;
@@ -17,7 +17,6 @@ int main() {
     StatisticsEngine stats(config.tlbLatencyNs, config.ramLatencyNs, config.diskLatencyNs);
 
     PageTable myPageTable(config);
-    VirtualDisk disk;
     // OPT Precompute
     std::vector<std::pair<char, uint32_t>> fullTrace;
     if (config.replacementPolicy == "OPT") {
@@ -89,6 +88,13 @@ int main() {
         }
 
         ++traceIdx;
+        // Print first 10 instructions for Rubric WP2
+        if (traceIdx <= 10) {
+            std::cout << "[Trace " << traceIdx << "] Addr: 0x" << std::hex << virtualAddr 
+                      << " | VPN: " << std::dec << vpn 
+                      << " | Offset: " << offset 
+                      << " | Op: " << opType << "\n";
+        }
     }
 
     stats.printReport();

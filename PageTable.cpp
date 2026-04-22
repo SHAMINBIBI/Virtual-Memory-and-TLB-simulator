@@ -1,11 +1,11 @@
 #include "PageTable.hpp"
 #include <iostream>
-int maxFrames;
+
 PageTable::PageTable(SystemConfig& config) {
     freeFrameManager = new FreeFrameManager(config.numFrames);
     replacementAlgo = new ReplacementAlgorithms(config.replacementPolicy);
-    maxFrames = config.numFrames;
-    std::cout << "[PageTable] Initialized with " << config.numFrames << " frames.\n";
+    this->maxFrames = config.numFrames; 
+    //std::cout << "[PageTable] Initialized with " << config.numFrames << " frames.\n";
 }
 
 PageTable::~PageTable() {
@@ -36,11 +36,11 @@ void PageTable::setDirty(uint32_t vpn) {
 uint32_t PageTable::allocateFrame(uint32_t newVPN, size_t currentTraceIdx) {
     uint32_t frame = 0;
 
-    std::cout << "[DEBUG] allocateFrame called for VPN=" << std::hex << newVPN 
-              << " at trace " << std::dec << currentTraceIdx << std::endl;
+   // std::cout << "[DEBUG] allocateFrame called for VPN=" << std::hex << newVPN 
+           //   << " at trace " << std::dec << currentTraceIdx << std::endl;
 
     if (freeFrameManager->getFreeFrame(frame)) {
-        std::cout << "[DEBUG] Assigned free frame " << frame << std::endl;
+       // std::cout << "[DEBUG] Assigned free frame " << frame << std::endl;
     } else {
         // Eviction needed
         std::unordered_map<uint32_t, bool> currentPages;
@@ -52,7 +52,7 @@ uint32_t PageTable::allocateFrame(uint32_t newVPN, size_t currentTraceIdx) {
 
         uint32_t victimVPN = replacementAlgo->selectVictim(currentPages, currentTraceIdx);
 
-        std::cout << "[DEBUG] Evicting victim VPN=" << std::hex << victimVPN << std::dec << std::endl;
+        //std::cout << "[DEBUG] Evicting victim VPN=" << std::hex << victimVPN << std::dec << std::endl;
 
         lastEvictedVPN = victimVPN;
         auto it = table.find(victimVPN);
@@ -61,7 +61,7 @@ uint32_t PageTable::allocateFrame(uint32_t newVPN, size_t currentTraceIdx) {
             frame = it->second.frameNumber;
 
             if (lastVictimWasDirty) {
-                std::cout << "[DEBUG] Victim was DIRTY → will trigger writeback!\n";
+                //std::cout << "[DEBUG] Victim was DIRTY → will trigger writeback!\n";
             }
 
             table.erase(it);

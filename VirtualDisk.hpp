@@ -9,7 +9,7 @@ public:
 
     long long performDirtyWriteback() {
         dirtyWrites++;
-        std::cout << "[VirtualDisk] Dirty page written back to disk.\n";   // temporary for debugging
+        //std::cout << "[VirtualDisk] Dirty page written back to disk.\n";   // temporary for debugging
         return 10000000LL; // 10 ms in ns
     }
 

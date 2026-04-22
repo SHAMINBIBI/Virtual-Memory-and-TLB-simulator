@@ -16,6 +16,7 @@ struct PageTableEntry {
 
 class PageTable {
 private:
+    int maxFrames;
     std::unordered_map<uint32_t, PageTableEntry> table;   // VPN → PTE (sparse)
 
     FreeFrameManager* freeFrameManager;

@@ -15,7 +15,7 @@ public:
         for (uint32_t i = 0; i < static_cast<uint32_t>(numFrames); ++i) {
             freeFrames.push_back(i);
         }
-        std::cout << "[FreeFrameManager] Initialized with " << numFrames << " free frames.\n";
+        //std::cout << "[FreeFrameManager] Initialized with " << numFrames << " free frames.\n";
     }
 
     // Get a free frame if available
