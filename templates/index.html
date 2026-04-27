@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMU Simulator Pro | Engineering Dashboard</title>
+    <!-- Modern Fonts and Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --text-main: #f1f5f9;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .navbar {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid #334155;
+            padding: 1rem 2rem;
+        }
+
+        .dashboard-container { padding: 2rem; }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: transform 0.2s;
+            height: 100%;
+        }
+
+        .glass-card:hover { border-color: var(--accent); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .form-label { color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+
+        .form-control, .form-select {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .form-control:focus { background-color: #0f172a; border-color: var(--accent); color: white; box-shadow: none; }
+
+        .btn-simulate {
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            border: none;
+            color: white;
+            padding: 12px;
+            font-weight: 600;
+            border-radius: 10px;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .btn-simulate:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        #raw-output {
+            background: #020617;
+            color: #10b981;
+            font-family: 'Fira Code', monospace;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            border: 1px solid #1e293b;
+            min-height: 250px;
+        }
+
+        .status-dot { height: 10px; width: 10px; background-color: var(--success); border-radius: 50%; display: inline-block; margin-right: 8px; }
+        
+        .loading-overlay { display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8); z-index: 1000; justify-content: center; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loader">
+        <div class="spinner-border text-info" role="status"></div>
+    </div>
+
+    <!-- Top Navbar -->
+    <nav class="navbar">
+        <div class="container-fluid">
+            <span class="navbar-brand text-white fw-bold">
+                <i class="fas fa-microchip me-2 text-info"></i> MMU SIMULATOR PRO
+            </span>
+            <div class="d-flex align-items-center">
+                <span class="status-dot"></span>
+                <small class="text-secondary">SYSTEM ONLINE</small>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="row g-4">
+            
+            <!-- Left: Configuration Sidebar -->
+            <div class="col-xl-3 col-lg-4">
+                <div class="glass-card">
+                    <h5 class="mb-4 text-info"><i class="fas fa-sliders-h me-2"></i>Configuration</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Physical RAM (KB)</label>
+                        <input type="number" id="ram_size" class="form-control" value="64">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Page Size (Bytes)</label>
+                        <select id="page_size" class="form-select">
+                            <option value="512">512 B</option>
+                            <option value="1024">1 KB</option>
+                            <option value="4096" selected>4 KB</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Replacement Policy</label>
+                        <select id="policy" class="form-select">
+                            <option value="FIFO">FIFO (Queue)</option>
+                            <option value="LRU">LRU (O(1) Map)</option>
+                            <option value="OPT">OPT (Clairvoyant)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">TLB Capacity</label>
+                        <input type="number" id="tlb_size" class="form-control" value="16">
+                    </div>
+
+                    <button class="btn-simulate" onclick="runSimulation()">
+                        RUN ANALYSIS <i class="fas fa-bolt ms-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right: Results & Visualization -->
+            <div class="col-xl-9 col-lg-8">
+                <div class="row g-4 mb-4">
+                    <!-- Stat Cards -->
+                    <div class="col-md-4">
+                        <div class="glass-card text-center">
+                            <label class="form-label">Total Faults</label>
+                            <div id="fault-stat" class="stat-value">--</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center">
+                            <label class="form-label">TLB Hit Rate</label>
+                            <div id="hit-rate-stat" class="stat-value">--%</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center">
+                            <label class="form-label">EAT (Latency)</label>
+                            <div id="eat-stat" class="stat-value" style="color: #10b981;">-- ns</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <!-- Graph -->
+                    <div class="col-md-7">
+                        <div class="glass-card">
+                            <h5 class="mb-4 text-secondary">Performance Visualization</h5>
+                            <canvas id="perfChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Console Output -->
+                    <div class="col-md-5">
+                        <div class="glass-card">
+                            <h5 class="mb-4 text-secondary">Diagnostic Log</h5>
+                            <pre id="raw-output">Ready for simulation...
+Select parameters and click 'Run Analysis' to begin.</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        function initChart(hits, faults) {
+            const ctx = document.getElementById('perfChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['TLB Hits', 'Page Faults'],
+                    datasets: [{
+                        data: [hits, faults],
+                        backgroundColor: ['#38bdf8', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        async function runSimulation() {
+            document.getElementById('loader').style.display = 'flex';
+            
+            const payload = {
+                ram_size: document.getElementById('ram_size').value,
+                page_size: document.getElementById('page_size').value,
+                policy: document.getElementById('policy').value,
+                tlb_size: document.getElementById('tlb_size').value
+            };
+
+            try {
+                const response = await fetch('/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                
+                // Parse output for stats
+                document.getElementById('raw-output').innerText = data.output;
+                
+                // Extract numbers using Regex for the UI cards
+                const faultCount = data.output.match(/Page Faults: (\d+)/)[1];
+                const tlbHits = data.output.match(/TLB Hits: (\d+)/)[1];
+                const eat = data.output.match(/EAT\): ([\d.]+)/)[1];
+                const total = 100000;
+                
+                document.getElementById('fault-stat').innerText = faultCount;
+                document.getElementById('hit-rate-stat').innerText = ((tlbHits/total)*100).toFixed(2) + "%";
+                document.getElementById('eat-stat').innerText = parseFloat(eat).toLocaleString() + " ns";
+                
+                initChart(tlbHits, faultCount);
+
+            } catch (error) {
+                alert("Simulation error. Check console.");
+            } finally {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
