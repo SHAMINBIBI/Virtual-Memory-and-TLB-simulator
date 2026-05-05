@@ -6,7 +6,9 @@
 enum class MemoryEvent {
     TLB_HIT,
     TLB_MISS_PT_HIT,
+    PT_HIT,
     PAGE_FAULT,
+    PT_PAGE_FAULT,
     DIRTY_WRITEBACK
 };
 
@@ -38,9 +40,18 @@ public:
                 totalTimeNs += (tlbLat + ramLat);
                 break;
 
+            case MemoryEvent::PT_HIT:
+                totalTimeNs += ramLat;   // Page table only access (bypass mode)
+                break;
+
             case MemoryEvent::PAGE_FAULT:
                 pageFaults++;
                 totalTimeNs += (tlbLat + ramLat + diskLat);   // TLB + RAM + Disk read
+                break;
+
+            case MemoryEvent::PT_PAGE_FAULT:
+                pageFaults++;
+                totalTimeNs += (ramLat + diskLat);   // Page table + Disk read (bypass mode)
                 break;
 
             case MemoryEvent::DIRTY_WRITEBACK:

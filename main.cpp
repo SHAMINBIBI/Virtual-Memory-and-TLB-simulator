@@ -28,7 +28,7 @@ int main() {
         myPageTable.precomputeOPT(fullTrace, config.shiftAmount);
     }
 
-    std::ifstream traceFile("test_trace_100k.txt");
+    std::ifstream traceFile("addresses.txt");
     if (!traceFile.is_open()) {
         std::cerr << "Error: Cannot open trace file\n";
         return 1;
@@ -37,6 +37,7 @@ int main() {
     char opType;
     uint32_t virtualAddr;
     size_t traceIdx = 0;
+    bool bypassTLB = false; // Set to true to skip TLB lookup and go directly to the page table.
 
         while (traceFile >> opType >> std::hex >> virtualAddr) {
         auto [vpn, offset] = AddressTranslator::splitAddress(virtualAddr, config);
@@ -45,26 +46,41 @@ int main() {
             return 1;
         }
 
-        int frame = myTLB.lookup(vpn);
+        int frame = -1;
 
-        if (frame != -1) {
+        if (!bypassTLB) {
+            frame = myTLB.lookup(vpn);
+        }
+
+        if (!bypassTLB && frame != -1) {
             // TLB HIT
             stats.recordEvent(MemoryEvent::TLB_HIT);
         } else {
-            // TLB MISS
             if (myPageTable.check(vpn)) {
-                // Page Table Hit (page is in RAM, but not in TLB)
-                stats.recordEvent(MemoryEvent::TLB_MISS_PT_HIT);
+                // Page Table Hit
+                if (!bypassTLB) {
+                    stats.recordEvent(MemoryEvent::TLB_MISS_PT_HIT);
+                } else {
+                    stats.recordEvent(MemoryEvent::PT_HIT);
+                }
                 frame = myPageTable.getFrame(vpn);
-                myTLB.update(vpn, frame);
+                if (!bypassTLB) {
+                    myTLB.update(vpn, frame);
+                }
             } else {
                 // ========== PAGE FAULT ==========
-                stats.recordEvent(MemoryEvent::PAGE_FAULT);
+                if (!bypassTLB) {
+                    stats.recordEvent(MemoryEvent::PAGE_FAULT);
+                } else {
+                    stats.recordEvent(MemoryEvent::PAGE_FAULT);
+                }
 
                 // Allocate frame (this will trigger eviction when full)
                 frame = myPageTable.allocateFrame(vpn, traceIdx);
 
-                myTLB.update(vpn, frame);
+                if (!bypassTLB) {
+                    myTLB.update(vpn, frame);
+                }
 
                 // Handle dirty writeback
                 if (myPageTable.victimWasDirty()) {
@@ -72,9 +88,11 @@ int main() {
                 }
 
                 // Invalidate TLB entry for evicted page (if any)
-                uint32_t evicted = myPageTable.getEvictedVPN();
-                if (evicted != 0) {
-                    myTLB.invalidate(evicted);
+                if (!bypassTLB) {
+                    uint32_t evicted = myPageTable.getEvictedVPN();
+                    if (evicted != 0) {
+                        myTLB.invalidate(evicted);
+                    }
                 }
             }
         }
