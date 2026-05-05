@@ -12,7 +12,7 @@ public:
         uint32_t vpn    = virtualAddr >> config.shiftAmount;
         uint32_t offset = virtualAddr & config.offsetMask;
 
-        // Optional debug print (uncomment when needed for proof of correctness)
+        // Optional debug print
         // std::cout << "Addr: 0x" << std::hex << virtualAddr 
         //           << " → VPN: 0x" << vpn << " Offset: 0x" << offset << std::dec << std::endl;
 

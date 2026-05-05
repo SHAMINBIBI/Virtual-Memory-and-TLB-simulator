@@ -17,7 +17,7 @@ struct PageTableEntry {
 class PageTable {
 private:
     int maxFrames;
-    std::unordered_map<uint32_t, PageTableEntry> table;   // VPN → PTE (sparse)
+    std::unordered_map<uint32_t, PageTableEntry> table;   
 
     FreeFrameManager* freeFrameManager;
     ReplacementAlgorithms* replacementAlgo;
@@ -33,7 +33,7 @@ public:
     uint32_t getFrame(uint32_t vpn) const;
     void setDirty(uint32_t vpn);
 
-    // Core: Allocate frame (handles free frame or eviction)
+    // Allocate frame (handles free frame or eviction)
     uint32_t allocateFrame(uint32_t newVPN, size_t currentTraceIdx);
 
     bool isFull() const;

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Updated Title -->
+    <title>Virtual Memory and TLB Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0b1120;
+            font-family: 'Segoe UI', system-ui, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 35px -8px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #38bdf8;
+            margin-bottom: 1.5rem; /* Increased margin since status line is gone */
+            letter-spacing: -0.3px;
+        }
+        .config {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 1.5rem;
+        }
+        .config label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 1px;
+            margin-bottom: 0.2rem;
+        }
+        .config input, .config select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.6rem;
+            padding: 0.5rem 0.75rem;
+            color: white;
+            font-size: 0.85rem;
+            width: 130px;
+        }
+        .config input:focus, .config select:focus {
+            outline: none;
+            border-color: #38bdf8;
+        }
+        button {
+            background: #38bdf8;
+            border: none;
+            border-radius: 0.8rem;
+            padding: 0.6rem 1.2rem;
+            font-weight: bold;
+            color: #0f172a;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+            margin-top: 0.2rem;
+        }
+        button:hover {
+            background: #0ea5e9;
+            transform: translateY(-1px);
+        }
+        pre {
+            background: #020617;
+            padding: 1rem;
+            border-radius: 1rem;
+            color: #10b981;
+            font-family: 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.8rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            border: 1px solid #334155;
+        }
+        hr {
+            border-color: #334155;
+            margin: 1rem 0;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <!-- Updated Header Text -->
+    <h1>⚙️ Virtual Memory and TLB Simulator</h1>
+
+    <div class="flex-row">
+        <div class="config">
+            <div>
+                <label>RAM (KB)</label>
+                <input type="number" id="ram" value="64" step="1">
+            </div>
+            <div>
+                <label>Page Size</label>
+                <select id="pagesize">
+                    <option value="512">512 B</option>
+                    <option value="1024">1 KB</option>
+                    <option value="4096" selected>4 KB</option>
+                </select>
+            </div>
+            <div>
+                <label>TLB entries</label>
+                <input type="number" id="tlb" value="16" step="1">
+            </div>
+            <div>
+                <label>Policy</label>
+                <select id="policy">
+                    <option value="FIFO">FIFO</option>
+                    <option value="LRU">LRU</option>
+                    <option value="OPT">OPT</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="runSim()">▶ RUN</button>
+    </div>
+
+    <pre id="output">Ready. Click RUN to start simulation.</pre>
+</div>
+
+<script>
+    async function runSim() {
+        const payload = {
+            ram_size: document.getElementById('ram').value,
+            page_size: document.getElementById('pagesize').value,
+            tlb_size: document.getElementById('tlb').value,
+            policy: document.getElementById('policy').value
+        };
+        const pre = document.getElementById('output');
+        pre.innerText = "Simulating... (may take a few seconds)";
+        try {
+            const res = await fetch('/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            pre.innerText = data.output;
+        } catch (err) {
+            pre.innerText = "Error: " + err.message;
+        }
+    }
+</script>
+</body>
+</html>
